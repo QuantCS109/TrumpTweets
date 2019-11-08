@@ -42,7 +42,7 @@ class TextFeaturesGenerator:
             self.tfidf_mat = self.tfidf_vectorizer.transform(self.bow_mat)
         return self.tfidf_mat
 
-    def save_matrices(self,folder=""):
+    def save_matrices(self,folder=None,suffix=""):
         """
         Arguments:
         :param folder: Folder / directory in which to save the matrices
@@ -52,8 +52,13 @@ class TextFeaturesGenerator:
             _ = self.get_bow_matrix()
         if self.tfidf_mat is None:
             _ = self.get_tfidf_matrix()
-        bow_location = os.path.join(folder, "bow_mat.npz")
-        tfidf_location = os.path.join(folder,"tfidf_mat.npz")
+        if folder:
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+        bow_file = "tfidf_mat"+suffix+".npz"
+        tfidif_file = "bow_mat" + suffix + ".npz"
+        bow_location = os.path.join(folder,bow_file) if folder else bow_file
+        tfidf_location = os.path.join(folder,tfidif_file) if folder else tfidif_file
         sparse.save_npz(bow_location, self.bow_mat)
         sparse.save_npz(tfidf_location,self.tfidf_mat)
 
