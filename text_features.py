@@ -65,7 +65,7 @@ class TextFeaturesGenerator:
                          random_state=None,
                          tol=0.0):
 
-        if self.tfidf is None:
+        if self.tfidf_mat is None:
             _ = self.get_tfidf_matrix()
         svd_transformer = TruncatedSVD(n_components,algorithm,n_iter,
                                        random_state,tol).fit(self.tfidf_mat)
