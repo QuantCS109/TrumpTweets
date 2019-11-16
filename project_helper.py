@@ -20,7 +20,7 @@ class TweetData:
         self.int_words = self.create_int_words()
 
     def read_data(self):
-        with open(self.file, mode='r') as f:
+        with open(self.file, mode='r',errors='ignore') as f:
             for row in f:
                 self.raw_data.append(row)
 
