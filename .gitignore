@@ -104,3 +104,4 @@ venv.bak/
 .mypy_cache/
 *.npz
 *.npy
+svd_df_daily.csv
