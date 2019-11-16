@@ -9,7 +9,7 @@ import os
 
 class TextFeaturesGenerator:
 
-    def __init__(self,text_series=None):
+    def __init__(self,text_series=None,score_series=None):
         """
         :param text_series: A pandas series with the text
         """
@@ -20,8 +20,15 @@ class TextFeaturesGenerator:
         self.bow_mat = None
         self.tfidf_mat = None
 
+        self.bow_mat_scored = None
+        self.tfidf_mat_scored = None
+
         self.svd_bow_mat = None
         self.svd_tfidf_mat = None
+        self.svd_bow_mat_scored = None
+        self.svd_tfidf_mat_scored = None
+
+        self.score_series = score_series
 
     def get_bow_matrix(self):
         """
@@ -31,7 +38,11 @@ class TextFeaturesGenerator:
         """
         if self.bow_mat is None:
             self.count_vectorizer = CountVectorizer()
-            self.bow_mat = self.count_vectorizer.fit_transform(self.text_series)
+            self.count_vectorizer = self.count_vectorizer.fit(self.text_series)
+            self.bow_mat = self.count_vectorizer.transform(self.text_series)
+        if self.score_series is not None:
+            self.bow_mat_scored = self.count_vectorizer.transform(self.score_series)
+            return self.bow_mat, self.bow_mat_scored
         return self.bow_mat
 
     def get_tfidf_matrix(self):
@@ -45,6 +56,9 @@ class TextFeaturesGenerator:
                 _ = self.get_bow_matrix()
             self.tfidf_vectorizer = TfidfTransformer(use_idf=True).fit(self.bow_mat)
             self.tfidf_mat = self.tfidf_vectorizer.transform(self.bow_mat)
+        if self.score_series is not None:
+            self.tfidf_mat_scored = self.tfidf_vectorizer.transform(self.bow_mat_scored)
+            return self.tfidf_mat, self.tfidf_mat_scored
         return self.tfidf_mat
 
     def get_svd_bow_mat(self,n_components=2,
@@ -56,7 +70,10 @@ class TextFeaturesGenerator:
             _ = self.get_bow_matrix()
         svd_transformer = TruncatedSVD(n_components,algorithm,n_iter,
                                        random_state,tol).fit(self.bow_mat)
-        self.svd_bow_mat= svd_transformer.transform(self.bow_mat)
+        self.svd_bow_mat = svd_transformer.transform(self.bow_mat)
+        if self.score_series is not None:
+            self.svd_bow_mat_scored = svd_transformer.transform(self.bow_mat_scored)
+            return self.svd_bow_mat, self.svd_bow_mat_scored
         return self.svd_bow_mat
 
     def get_svd_tfidf_mat(self,n_components=2,
@@ -70,6 +87,9 @@ class TextFeaturesGenerator:
         svd_transformer = TruncatedSVD(n_components,algorithm,n_iter,
                                        random_state,tol).fit(self.tfidf_mat)
         self.svd_tfidf_mat= svd_transformer.transform(self.tfidf_mat)
+        if self.score_series is not None:
+            self.svd_tfidf_mat_scored = svd_transformer.transform(self.tfidf_mat_scored)
+            return self.svd_tfidf_mat, self.svd_tfidf_mat_scored
         return self.svd_tfidf_mat
 
 
