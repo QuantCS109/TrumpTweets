@@ -2,6 +2,7 @@ import pandas as pd
 from collections import Counter
 from pytz import timezone
 import re
+from datetime import timedelta
 
 
 class TweetData:
@@ -18,6 +19,9 @@ class TweetData:
         self.words = self.tokenize_text()
         self.vocab_to_int, self.int_to_vocab = self.create_lookup_tables()
         self.int_words = self.create_int_words()
+
+        self.daily_tweets = None
+        self.get_daily_tweets()
 
     def read_data(self):
         with open(self.file, mode='r',errors='ignore') as f:
@@ -94,6 +98,16 @@ class TweetData:
 
     def create_int_words(self):
         return [self.vocab_to_int[word] for word in self.words]
+
+    def get_daily_tweets(self):
+        self.clean_tweets['timestamp'] = self.clean_tweets.index
+        after_4_tweets = self.clean_tweets.timestamp.dt.hour >= 15
+        self.clean_tweets['after4_date'] = self.clean_tweets.timestamp.dt.date
+        self.clean_tweets.loc[after_4_tweets, 'after4_date'] = self.clean_tweets.timestamp[after_4_tweets].dt.date\
+                                                               + timedelta(days=1)
+        self.daily_tweets = self.clean_tweets.groupby('after4_date')['tweets'].apply(lambda x: ' '.join(x))
+        self.daily_tweets = self.daily_tweets.to_frame('tweets')
+        self.daily_tweets.index.name = 'date'
 
 
 class APIData(TweetData):
