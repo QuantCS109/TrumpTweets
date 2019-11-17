@@ -105,3 +105,5 @@ venv.bak/
 *.npz
 *.npy
 svd_df_daily.csv
+
+.idea
