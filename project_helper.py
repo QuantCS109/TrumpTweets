@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestClassifier
 
 class TweetData:
 
-    def __init__(self, file='trump_archive_db.csv'):
+    def __init__(self, file='data/trump_archive_db.csv'):
         self.file = file
         self.raw_data = []
         self.error_tweets = {}
@@ -116,7 +116,7 @@ class TweetData:
 
 class APIData(TweetData):
 
-    def __init__(self, file='trumptwits.csv'):
+    def __init__(self, file='data/trumptwits.csv'):
         super().__init__(file=file)
 
     def read_data(self):
@@ -140,7 +140,7 @@ class APIData(TweetData):
 
 class IntradayData:
 
-    def __init__(self,file='ES_intraday.csv'):
+    def __init__(self,file='data/ES_intraday.csv'):
         self.file = file
         self.raw_data = self.read_data()
 
@@ -156,7 +156,7 @@ class IntradayData:
 
 
 class FuturesCloseData:
-    def __init__(self, path='futures_close.csv'):
+    def __init__(self, path='data/futures_close.csv'):
         self.instrument_list = ['ES', 'NQ', 'CD', 'EC', 'JY', 'MP', 'TY', 'US', 'C', 'S', 'W', 'CL', 'GC']
         self.df = self.load(path)
 
@@ -184,7 +184,7 @@ class FuturesCloseData:
 
 
 class VolFeatures:
-    def __init__(self, path='vol.pkl'):
+    def __init__(self, path='features/vol.pkl'):
         self.instrument_list = ['ES', 'NQ', 'CD', 'EC', 'JY', 'MP', 'TY', 'US', 'C', 'S', 'W', 'CL', 'GC']
         self.df = self.load(path)
         self.col_dict = {inst: [key for key in self.df.columns if re.match(r"{}_+".format(inst), key)]

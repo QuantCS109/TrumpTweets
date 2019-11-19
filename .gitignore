@@ -107,3 +107,4 @@ venv.bak/
 svd_df_daily.csv
 
 .idea
+.DS_Store
