@@ -1,8 +1,12 @@
 import pandas as pd
+import numpy as np
 from collections import Counter
 from pytz import timezone
 import re
 from datetime import timedelta
+import pickle
+import re
+from sklearn.ensemble import RandomForestClassifier
 
 
 class TweetData:
@@ -111,6 +115,7 @@ class TweetData:
 
 
 class APIData(TweetData):
+
     def __init__(self, file='trumptwits.csv'):
         super().__init__(file=file)
 
@@ -133,17 +138,95 @@ class APIData(TweetData):
         return tweet
 
 
-class MarketData:
-    def __init__(self,file='ES.csv'):
+class IntradayData:
+
+    def __init__(self,file='ES_intraday.csv'):
         self.file = file
-        self.data = self.read_data()
+        self.raw_data = self.read_data()
 
     def read_data(self):
         fin_data = pd.read_csv(self.file)
         fin_data.index = pd.to_datetime(fin_data['Date'] + ' ' + fin_data['Time']).dt.tz_localize('US/Central')
         fin_data.index.name = 'timestamp'
-        fin_data.drop(columns=['Date', 'Time'])
+        fin_data = fin_data.drop(columns=['Date', 'Time'])
         return fin_data
+
+    def get_data(self):
+        return self.raw_data[['Open', 'Close']]
+
+
+class FuturesCloseData:
+    def __init__(self, path='futures_close.csv'):
+        self.instrument_list = ['ES', 'NQ', 'CD', 'EC', 'JY', 'MP', 'TY', 'US', 'C', 'S', 'W', 'CL', 'GC']
+        self.df = self.load(path)
+
+    def load(self, path):
+        df = pd.read_csv(path)
+        df.set_index('date', inplace=True)
+        df.index = pd.to_datetime(df.index)
+        return df
+
+    def features(self, inst):
+        return self.momentum(inst)
+
+    def price(self, inst):
+        return self.df[inst]
+
+    def returns(self, inst, start=1, end=2):
+        returns = (self.df[inst].shift(-end) - self.df[inst].shift(-start)) / self.df[inst].shift(-start)
+        return returns
+
+    def momentum(self, inst, lag=60):
+        momo = pd.DataFrame((self.df[inst] - self.df[inst].shift(lag)) / self.df[inst])
+        momo = momo.dropna()
+        momo.columns += '_{}D'.format(lag)
+        return momo
+
+
+class VolFeatures:
+    def __init__(self, path='vol.pkl'):
+        self.instrument_list = ['ES', 'NQ', 'CD', 'EC', 'JY', 'MP', 'TY', 'US', 'C', 'S', 'W', 'CL', 'GC']
+        self.df = self.load(path)
+        self.col_dict = {inst: [key for key in self.df.columns if re.match(r"{}_+".format(inst), key)]
+                         for inst in self.instrument_list}
+
+    def features(self, inst):
+        return self.df[self.col_dict[inst]]
+
+    def load(self, path):
+        pickle_in = open(path, "rb")
+        vol_pd = pickle.load(pickle_in)
+        pickle_in.close()
+        return vol_pd.fillna(vol_pd.mean())
+
+
+class TradeModel:
+
+    def __init__(self, model=RandomForestClassifier, *args, **kwargs):
+        self.model = model(*args, **kwargs)
+
+    def fit(self, X, y):
+        self.model.fit(X, y)
+
+    def position(self, X, cutoff=0.55):
+        # converting predictions from {0,1} to {-1,1}, short/long
+        position = 2 * self.model.predict(X) - 1
+        position[self.model.predict_proba(X).max(axis=1) <= cutoff] = 0
+        return position
+
+    def _strategy_returns(self, x, y):
+        strat_rets = x[:-2] * y[:-2]
+        strat_rets_cum = (1 + strat_rets).cumprod()
+        return strat_rets, strat_rets_cum
+
+    def strategy_returns(self, X, returns, cutoff=0.55):
+        return self._strategy_returns(returns, self.position(X, cutoff))
+
+    def sharpe(self, X, returns, cutoff=0.55):
+        rets = self.strategy_returns(X, returns, cutoff)[0]
+        return np.mean(rets) / np.std(rets)
+
+
 
 
 
