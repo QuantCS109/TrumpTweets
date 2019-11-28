@@ -182,6 +182,9 @@ class FuturesCloseData:
         momo.columns += '_{}D'.format(lag)
         return momo
 
+    def log_returns(self):
+        return np.log(self.df.shift(-1)) - np.log(self.df)
+
 
 class VolFeatures:
     def __init__(self, path='features/vol.pkl'):
