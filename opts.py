@@ -200,7 +200,7 @@ class VolCurve:
         return vol_poly
 
 
-class CreateVolCurveAgg:
+class VolCurveAgg:
 
     def __init__(self, instrument, today, vol_dict):
 
@@ -208,9 +208,43 @@ class CreateVolCurveAgg:
         self.today = pd.to_datetime(today)
         self.vol_dict = vol_dict
         self.rate_curve = RatesCurve()
-        self.opt_prices = {}
         self.fut_prices = {}
         self.vol_curve = self.calc_ivols()
+        self.up_gamma = 0
+        self.down_gamma = 0
+        self.up_gamma_5 = 0
+        self.down_gamma_5 = 0
+        self.agg_gamma()
+
+    def agg_gamma(self):
+        for key in self.vol_curve.keys():
+            t = (key - self.today).days / 365
+            for strike in self.vol_curve[key].index:
+                if strike >= self.fut_prices[key]:
+                    self.up_gamma += self.vol_curve[key].oi.loc[strike] * gamma(self.fut_prices[key],
+                                      strike,
+                                      self.vol_curve[key].imp_vol.loc[strike],
+                                      self.rate_curve.get(self.today),
+                                      t)
+                if strike <= self.fut_prices[key]:
+                    self.down_gamma += self.vol_curve[key].oi.loc[strike] * gamma(self.fut_prices[key],
+                                      strike,
+                                      self.vol_curve[key].imp_vol.loc[strike],
+                                      self.rate_curve.get(self.today),
+                                      t)
+                if strike >= 1.025 * self.fut_prices[key]:
+                    self.up_gamma_5 += self.vol_curve[key].oi.loc[strike] * gamma(1.05 * self.fut_prices[key],
+                                      strike,
+                                      self.vol_curve[key].imp_vol.loc[strike],
+                                      self.rate_curve.get(self.today),
+                                      t)
+                if strike <= 0.975 * self.fut_prices[key]:
+                    self.down_gamma_5 += self.vol_curve[key].oi.loc[strike] * gamma(0.95 * self.fut_prices[key],
+                                      strike,
+                                      self.vol_curve[key].imp_vol.loc[strike],
+                                      self.rate_curve.get(self.today),
+                                      t)
+
 
     def calc_ivols(self):
         vc = {}
@@ -220,7 +254,6 @@ class CreateVolCurveAgg:
             # ignore date
             try:
                 if (str(self.vol_dict[self.today]['Call'][key]) == '') | (str(self.vol_dict[self.today]['Put'][key]) == ''):
-                    print(1)
                     pass
                 else:
                     imp_vol_dict = {}
@@ -228,6 +261,8 @@ class CreateVolCurveAgg:
                 # Calculate options moneyness. Only consider 80%-120% moneyness (fut/strike)
                     fut = self.vol_dict[self.today]['Call'][key].future.iloc[0]
                     expiration = self.vol_dict[self.today]['Call'][key].expiration.iloc[0]
+                    #saving futures price ina  dictionary for gamma calculation
+                    self.fut_prices[expiration] = fut
                     # Above 1 moneyness consider calls, under consider puts
                     ind_call = (fut * 1 < self.vol_dict[self.today]['Call'][key].strike
                                 ) &  (self.vol_dict[self.today]['Call'][key].strike < fut * 1.2)
@@ -241,32 +276,31 @@ class CreateVolCurveAgg:
                     for j in range(puts.shape[0]):
                         t = expiration - self.today
                         t = t.days
-                        imp_vol_dict[puts.strike.iloc[j]] = imp_vol(puts.settle.iloc[j],
+                        imp_vol_dict[puts.strike.iloc[j]] = [imp_vol(puts.settle.iloc[j],
                                                                 fut,
                                                                 puts.strike.iloc[j],
                                                                 self.rate_curve.get(self.today) * 0.01,
                                                                 t / 365,
-                                                                opt_type='put')
+                                                                opt_type='put'), puts.oi.iloc[j]]
 
                     # cycle through all calls and calculate implied volatility
                     for j in range(calls.shape[0]):
                         t = expiration - self.today
                         t = t.days
-                        imp_vol_dict[calls.strike.iloc[j]] = imp_vol(calls.settle.iloc[j],
+                        imp_vol_dict[calls.strike.iloc[j]] = [imp_vol(calls.settle.iloc[j],
                                                                 fut,
                                                                 calls.strike.iloc[j],
                                                                 self.rate_curve.get(self.today) * 0.01,
                                                                 t / 365,
-                                                                opt_type='call')
-
+                                                                opt_type='call'), calls.oi.iloc[j]]
                     vc[expiration] = pd.DataFrame(imp_vol_dict.values(),
                                                   index= imp_vol_dict.keys(),
-                                                  columns = ['imp_vol'])
+                                                  columns = ['imp_vol','oi'])
             except KeyError:
                 pass
         return vc
 
-class CreateVolCurve:
+class CreateVolCurveSample:
 
     def __init__(self, instrument, today, IMM1_call_prices, IMM1_put_prices,
                               IMM2_call_prices, IMM2_put_prices,
