@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
@@ -10,6 +9,17 @@ import re
 
 
 def black(fwd , k, vol , r, t, opt_type='call'):
+    """
+    This function calculates option prices through Black-76 model
+    Source: https://en.wikipedia.org/wiki/Black_model
+    :param fwd: forward price of underlying
+    :param k: strike
+    :param vol: volatility
+    :param r: interest rate
+    :param t: time to expiration
+    :param opt_type: option type (call or put)
+    :return: option price
+    """
     d1 = (np.log(fwd / k) + (vol**2/2)*t) / (vol * np.sqrt(t))
     d2 = d1 - vol * np.sqrt(t)
     if opt_type == 'call':
@@ -20,6 +30,17 @@ def black(fwd , k, vol , r, t, opt_type='call'):
 
 
 def delta(fwd , k, vol , r, t, opt_type='call'):
+    """
+    This function calculates the delta of an option assuming Black-76 model
+    Source: https://www.glynholton.com/notes/black_1976/
+    :param fwd: forward price of underlying
+    :param k: strike
+    :param vol: volatility
+    :param r: interest rate
+    :param t: time to expiration
+    :param opt_type: option type (call or put)
+    :return: delta
+    """
     d1 = (np.log(fwd / k) + (vol**2/2)*t) / (vol * np.sqrt(t))
     if opt_type == 'call':
         delta = np.exp(-r * t) * norm.cdf(d1)
@@ -29,10 +50,30 @@ def delta(fwd , k, vol , r, t, opt_type='call'):
 
 
 def gamma(fwd , k, vol , r, t):
+    """
+    This function calculates the gamma of an option assuming Black-76 model
+    Source: https://www.glynholton.com/notes/black_1976/
+    :param fwd: forward price of underlying
+    :param k: strike
+    :param vol: volatility
+    :param r: interest rate
+    :param t: time to expiration
+    :return: gamma
+    """
     return delta(fwd , k, vol , r, t)/(fwd*vol*np.sqrt(t))
 
 
 def imp_vol(opt_px, fwd , k , r, t, opt_type='call'):
+    """
+    This function calculates the implied volatility of an option assuming Black-76 model
+    :param opt_px: option price
+    :param fwd: forward price of underlying
+    :param k: strike
+    :param r: interest rate
+    :param t: time to expiration
+    :param opt_type: option type (call or put)
+    :return: implied volatility
+    """
     if opt_type == 'call':
         vol = newton( lambda vol : black(fwd , k, vol , r, t ) - opt_px , 0.2)
     else:
@@ -41,6 +82,11 @@ def imp_vol(opt_px, fwd , k , r, t, opt_type='call'):
 
 
 class CMECalendar:
+    """
+    IMM_dates: Options expirations for options that expire on IMM dates, 3rd Friday of each month
+    minus a day if holiday
+    EOM_dates: Options expirations for options that expire on the last business day of every month
+    """
 
     IMM_dates = pd.to_datetime(['18-DEC-15','18-MAR-16','17-JUN-16','16-SEP-16','16-DEC-16',
                 '17-MAR-17','16-JUN-17','15-SEP-17','15-DEC-17','16-MAR-18','15-JUN-18',
@@ -51,7 +97,13 @@ class CMECalendar:
 
 
 class RatesCurve:
-
+    """
+    This class obtains 1 month libor's close.
+    Work in progress: Add 3 month libor and strip a curve for better results
+    In Black model, if you have the futures price, interest rates only play a factor
+    through discounting, so having a less-than-perfect estimate of the relevant interest
+    rate isn't as important as in, say, Black-Scholes.
+    """
     def __init__(self, path='data/libor_1m.csv'):
         self.rates = pd.read_csv(path)
         self.rates.DATE = pd.to_datetime(self.rates.DATE)
@@ -59,11 +111,20 @@ class RatesCurve:
         self.rates['LIBOR'] = self.rates['LIBOR'].astype(float)
 
     def get(self, date):
+        """
+        Get 1 month libor for a specific date
+        :param date: date in any format that can be converted to datetime
+        :return: 1 month libor (float)
+        """
         current_date = pd.to_datetime(date)
         return float(self.rates.loc[current_date])
 
 
 class FuturesCurve:
+    """
+    FuturesCurve reads a database of 1 week, 1 month, and 2 month futures prices and interpolates to obtain
+    futures prices for any date inside 2 months.
+    """
 
     def __init__(self, path='data/fut.pkl'):
         self.instrument_list = ['ES', 'NQ', 'CD', 'EC', 'JY', 'MP', 'TY', 'US', 'C', 'S', 'W', 'CL', 'GC']
@@ -72,14 +133,29 @@ class FuturesCurve:
                          for inst in self.instrument_list}
 
     def get(self, inst, today, fut_date):
+        """
+        This function returns the futures price for a specific asset, date, and expiry, as long as expiry
+        is within two months of date.
+        :param inst: Instrument: ['ES', 'NQ', 'CD', 'EC', 'JY', 'MP', 'TY', 'US', 'C', 'S', 'W', 'CL', 'GC']
+        :param today: date in any format that can be converted to datetime
+        :param fut_date: Expiry date. if '1W', '1M', or '2M', obtain price for 1 week, 1 month or 2 months,
+        respectively. Else, expiry date in any format that can be converted to datetime.
+        :return: futures price
+        """
+        # Get price directly from database
         if fut_date == '1W':
             return self.df[self.col_dict[inst][0]][today]
         if fut_date == '1M':
             return self.df[self.col_dict[inst][1]][today]
         if fut_date == '2M':
             return self.df[self.col_dict[inst][2]][today]
+
+        # If under 1 week, assume price is 1 week price. We won't use prices under 1 week in any
+        # calculation with this function
         if pd.to_datetime(fut_date) <= pd.to_datetime(today) + timedelta(weeks=1):
             return self.df[self.col_dict[inst][0]][today]
+
+        # If within 1 month, interpolate between 1 week and 1 month
         elif pd.to_datetime(fut_date) <= pd.to_datetime(today) + relativedelta(months=1):
             t0 = 0
             t1 =((pd.to_datetime(today) + relativedelta(months=1)) - pd.to_datetime(today)).days
@@ -87,9 +163,11 @@ class FuturesCurve:
             f = ((t-t0)/t1) * self.df[self.col_dict[inst][1]][today] + \
                 ((t1-t)/t1) * self.df[self.col_dict[inst][0]][today]
             return f
-        elif pd.to_datetime(fut_date) <= pd.to_datetime(today) + relativedelta(months=2):
+
+        # If under two months, interpolate between 1 month and 2 month
+        elif pd.to_datetime(fut_date) <= pd.to_datetime(today) + relativedelta(months=2) +timedelta(days=2):
             t0 = 0
-            t1 = ((pd.to_datetime(today) + relativedelta(months=2)) -
+            t1 = ((pd.to_datetime(today) + relativedelta(months=2)) +timedelta(days=2) -
                   (pd.to_datetime(today) + relativedelta(months=1))).days
             t = (pd.to_datetime(fut_date)  - (pd.to_datetime(today) + relativedelta(months=1))).days
             f = ((t-t0)/t1) * self.df[self.col_dict[inst][2]][today] + \
@@ -106,6 +184,10 @@ class FuturesCurve:
 
 
 class VolCurve:
+    """
+    This class has vol_poly, a pandas dataframe with indices as dates, and columns as the
+    coefcients of a 5 degree polynomial which represents the volatility surface.
+    """
     def __init__(self):
         self.vol_poly = self.load('data/vol_poly.pkl')
         self.rate_curve = RatesCurve()
@@ -116,6 +198,73 @@ class VolCurve:
         vol_poly = pickle.load(pickle_in)
         pickle_in.close()
         return vol_poly
+
+
+class CreateVolCurveAgg:
+
+    def __init__(self, instrument, today, vol_dict):
+
+        self.instrument = instrument
+        self.today = pd.to_datetime(today)
+        self.vol_dict = vol_dict
+        self.rate_curve = RatesCurve()
+        self.opt_prices = {}
+        self.fut_prices = {}
+        self.vol_curve = self.calc_ivols()
+
+    def calc_ivols(self):
+        vc = {}
+        for key in self.vol_dict[self.today]['Call'].keys():
+
+            # See if no options data for a particular expiration date, if missing for either calls or puts,
+            # ignore date
+            try:
+                if (str(self.vol_dict[self.today]['Call'][key]) == '') | (str(self.vol_dict[self.today]['Put'][key]) == ''):
+                    print(1)
+                    pass
+                else:
+                    imp_vol_dict = {}
+
+                # Calculate options moneyness. Only consider 80%-120% moneyness (fut/strike)
+                    fut = self.vol_dict[self.today]['Call'][key].future.iloc[0]
+                    expiration = self.vol_dict[self.today]['Call'][key].expiration.iloc[0]
+                    # Above 1 moneyness consider calls, under consider puts
+                    ind_call = (fut * 1 < self.vol_dict[self.today]['Call'][key].strike
+                                ) &  (self.vol_dict[self.today]['Call'][key].strike < fut * 1.2)
+                    ind_put = (fut * 0.8 < self.vol_dict[self.today]['Put'][key].strike
+                                ) &  (self.vol_dict[self.today]['Put'][key].strike < fut * 1)
+
+                    calls = self.vol_dict[self.today]['Call'][key].loc[ind_call]
+                    puts = self.vol_dict[self.today]['Put'][key].loc[ind_put]
+
+                    # cycle through all puts and calculate implied volatility
+                    for j in range(puts.shape[0]):
+                        t = expiration - self.today
+                        t = t.days
+                        imp_vol_dict[puts.strike.iloc[j]] = imp_vol(puts.settle.iloc[j],
+                                                                fut,
+                                                                puts.strike.iloc[j],
+                                                                self.rate_curve.get(self.today) * 0.01,
+                                                                t / 365,
+                                                                opt_type='put')
+
+                    # cycle through all calls and calculate implied volatility
+                    for j in range(calls.shape[0]):
+                        t = expiration - self.today
+                        t = t.days
+                        imp_vol_dict[calls.strike.iloc[j]] = imp_vol(calls.settle.iloc[j],
+                                                                fut,
+                                                                calls.strike.iloc[j],
+                                                                self.rate_curve.get(self.today) * 0.01,
+                                                                t / 365,
+                                                                opt_type='call')
+
+                    vc[expiration] = pd.DataFrame(imp_vol_dict.values(),
+                                                  index= imp_vol_dict.keys(),
+                                                  columns = ['imp_vol'])
+            except KeyError:
+                pass
+        return vc
 
 class CreateVolCurve:
 
