@@ -187,7 +187,7 @@ class FuturesCloseData:
 
 
 class VolFeatures:
-    def __init__(self, path='features/vol.pkl'):
+    def __init__(self, path='features/vol_features.pkl'):
         self.instrument_list = ['ES', 'NQ', 'CD', 'EC', 'JY', 'MP', 'TY', 'US', 'C', 'S', 'W', 'CL', 'GC']
         self.df = self.load(path)
         self.col_dict = {inst: [key for key in self.df.columns if re.match(r"{}_+".format(inst), key)]
@@ -201,6 +201,18 @@ class VolFeatures:
         vol_pd = pickle.load(pickle_in)
         pickle_in.close()
         return vol_pd.fillna(vol_pd.mean())
+
+
+class TweetReturnsFeatures(VolFeatures):
+    def __init__(self, path='features/tweet_returns_features.csv'):
+        super().__init__(path)
+
+    def load(self, path):
+        tweet_returns = pd.read_csv(path)
+        tweet_returns.set_index('date', inplace=True)
+        tweet_returns.index = pd.to_datetime(tweet_returns.index)
+        return tweet_returns
+
 
 
 class TradeModel:
