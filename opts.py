@@ -215,6 +215,16 @@ class VolCurveAgg:
         self.up_gamma_5 = 0
         self.down_gamma_5 = 0
         self.agg_gamma()
+        self.features = self.calc_features()
+
+    def calc_features(self):
+        features = pd.DataFrame(columns=[self.instrument + '_up_gamma',
+                                              self.instrument + '_up_gamma_5',
+                                              self.instrument + '_down_gamma',
+                                              self.instrument + '_down_gamma_5'],
+                                index=[self.today])
+        features.loc[self.today] = [self.up_gamma, self.up_gamma_5, self.down_gamma,self.down_gamma_5]
+        return features
 
     def agg_gamma(self):
         for key in self.vol_curve.keys():
@@ -296,7 +306,7 @@ class VolCurveAgg:
                     vc[expiration] = pd.DataFrame(imp_vol_dict.values(),
                                                   index= imp_vol_dict.keys(),
                                                   columns = ['imp_vol','oi'])
-            except KeyError:
+            except:
                 pass
         return vc
 
