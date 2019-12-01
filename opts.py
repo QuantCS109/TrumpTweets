@@ -61,10 +61,11 @@ def gamma(fwd , k, vol , r, t):
     :param t: time to expiration
     :return: gamma
     """
-    return delta(fwd , k, vol , r, t)/(fwd*vol*np.sqrt(t))
+    d1 = (np.log(fwd / k) + (vol ** 2 / 2) * t) / (vol * np.sqrt(t))
+    return np.exp(-r * t) * norm.pdf(d1)
 
 
-def imp_vol(opt_px, fwd , k , r, t, opt_type='call'):
+def imp_vol(opt_px, fwd, k, r, t, opt_type='call'):
     """
     This function calculates the implied volatility of an option assuming Black-76 model
     :param opt_px: option price
@@ -277,31 +278,30 @@ class VolCurveAgg:
 
     def agg_gamma(self):
         for key in self.vol_curve.keys():
+            r = self.rate_curve.get(self.today, key)
             t = (key - self.today).days / 365
             for strike in self.vol_curve[key].index:
-                if strike >= self.fut_prices[key]:
+                if strike >= 1.025 * self.fut_prices[key]:
                     self.up_gamma += self.vol_curve[key].oi.loc[strike] * gamma(self.fut_prices[key],
                                       strike,
                                       self.vol_curve[key].imp_vol.loc[strike],
-                                      self.rate_curve.get(self.today),
+                                      r,
                                       t)
-                if strike <= self.fut_prices[key]:
-                    self.down_gamma += self.vol_curve[key].oi.loc[strike] * gamma(self.fut_prices[key],
-                                      strike,
-                                      self.vol_curve[key].imp_vol.loc[strike],
-                                      self.rate_curve.get(self.today),
-                                      t)
-                if strike >= 1.025 * self.fut_prices[key]:
                     self.up_gamma_5 += self.vol_curve[key].oi.loc[strike] * gamma(1.05 * self.fut_prices[key],
                                       strike,
                                       self.vol_curve[key].imp_vol.loc[strike],
-                                      self.rate_curve.get(self.today),
+                                      r,
                                       t)
                 if strike <= 0.975 * self.fut_prices[key]:
                     self.down_gamma_5 += self.vol_curve[key].oi.loc[strike] * gamma(0.95 * self.fut_prices[key],
                                       strike,
                                       self.vol_curve[key].imp_vol.loc[strike],
-                                      self.rate_curve.get(self.today),
+                                      r,
+                                      t)
+                    self.down_gamma += self.vol_curve[key].oi.loc[strike] * gamma(self.fut_prices[key],
+                                      strike,
+                                      self.vol_curve[key].imp_vol.loc[strike],
+                                      r,
                                       t)
 
     def calc_ivols(self):
