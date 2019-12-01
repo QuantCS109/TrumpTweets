@@ -4,6 +4,7 @@ from scipy.stats import norm
 from scipy.optimize import newton
 from datetime import timedelta, date
 from dateutil.relativedelta import relativedelta
+from numpy.polynomial.polynomial import polyval
 import pickle
 import re
 
@@ -81,6 +82,19 @@ def imp_vol(opt_px, fwd , k , r, t, opt_type='call'):
     return vol
 
 
+def delta_moneyness(x, vol, r, t, opt_type='call'):
+    x = np.exp(x)
+    if opt_type == 'call':
+        return delta(1, x, vol, r, t, opt_type=opt_type)
+    else:
+        return delta(1, x, vol, r, t, opt_type=opt_type)
+
+
+def find_delta(vol_poly, r, t, delta=0.25, opt_type='call'):
+    x = newton(lambda x : abs(delta_moneyness(x, polyval(x,vol_poly), r, t, opt_type=opt_type)) - delta, 0)
+    return float(x), float(polyval(x,vol_poly))
+
+
 class CMECalendar:
     """
     IMM_dates: Options expirations for options that expire on IMM dates, 3rd Friday of each month
@@ -104,20 +118,53 @@ class RatesCurve:
     through discounting, so having a less-than-perfect estimate of the relevant interest
     rate isn't as important as in, say, Black-Scholes.
     """
-    def __init__(self, path='data/libor_1m.csv'):
-        self.rates = pd.read_csv(path)
+    def __init__(self):
+        self.rates = pd.read_csv('data/libor_1m.csv')
         self.rates.DATE = pd.to_datetime(self.rates.DATE)
         self.rates = self.rates.set_index('DATE')
         self.rates['LIBOR'] = self.rates['LIBOR'].astype(float)
 
-    def get(self, date):
+        self.rates_1m = self.rates
+
+        self.rates_3m = pd.read_csv('data/libor_3m.csv')
+        self.rates_3m.DATE = pd.to_datetime(self.rates_3m.DATE)
+        self.rates_3m = self.rates_3m.set_index('DATE')
+        self.rates_3m['LIBOR'] = self.rates_3m['LIBOR'].astype(float)
+
+        self.rates_6m = pd.read_csv('data/libor_6m.csv')
+        self.rates_6m.DATE = pd.to_datetime(self.rates_6m.DATE)
+        self.rates_6m = self.rates_6m.set_index('DATE')
+        self.rates_6m['LIBOR'] = self.rates_6m['LIBOR'].astype(float)
+
+    def get(self, today, fut_date='' ):
         """
         Get 1 month libor for a specific date
-        :param date: date in any format that can be converted to datetime
+        :param today: date in any format that can be converted to datetime
         :return: 1 month libor (float)
         """
-        current_date = pd.to_datetime(date)
-        return float(self.rates.loc[current_date])
+        current_date = pd.to_datetime(today)
+        if fut_date== '':
+            return float(self.rates.loc[current_date])
+        else:
+            fut_date = pd.to_datetime(fut_date)
+            if fut_date <= current_date + relativedelta(months=1):
+                return float(self.rates.loc[current_date])
+            elif fut_date <= current_date + relativedelta(months=3):
+                t0 = 0
+                t1 = 91
+                t = (pd.to_datetime(fut_date) - pd.to_datetime(current_date)).days
+                r = ((t - t0) / t1) * float(self.rates_3m.loc[current_date]) + \
+                    ((t1 - t) / t1) * float(self.rates.loc[current_date])
+                return r
+            elif fut_date <= current_date + relativedelta(months=6):
+                t0 = 0
+                t1 = 182
+                t = (pd.to_datetime(fut_date) - pd.to_datetime(current_date)).days
+                r = ((t - t0) / t1) * float(self.rates_6m.loc[current_date]) + \
+                    ((t1 - t) / t1) * float(self.rates_3m.loc[current_date])
+                return r
+            else:
+                return float(self.rates_6m.loc[current_date])
 
 
 class FuturesCurve:
@@ -185,11 +232,13 @@ class FuturesCurve:
 
 class VolCurve:
     """
-    This class has vol_poly, a pandas dataframe with indices as dates, and columns as the
-    coefcients of a 5 degree polynomial which represents the volatility surface.
+    This class has vol_poly, a dictionary with instrument codes as keys and values a pandas
+    dataframe with indices as dates, and columns as the oefficients of a 5 degree polynomial
+    which represents the volatility surface.
     """
     def __init__(self):
-        self.vol_poly = self.load('data/vol_poly.pkl')
+        self.vol_poly_1M = self.load('data/vol_poly_1M.pkl')
+        self.vol_poly_2M = self.load('data/vol_poly_2M.pkl')
         self.rate_curve = RatesCurve()
         self.futures_curve = FuturesCurve()
 
@@ -255,7 +304,6 @@ class VolCurveAgg:
                                       self.rate_curve.get(self.today),
                                       t)
 
-
     def calc_ivols(self):
         vc = {}
         for key in self.vol_dict[self.today]['Call'].keys():
@@ -271,7 +319,7 @@ class VolCurveAgg:
                 # Calculate options moneyness. Only consider 80%-120% moneyness (fut/strike)
                     fut = self.vol_dict[self.today]['Call'][key].future.iloc[0]
                     expiration = self.vol_dict[self.today]['Call'][key].expiration.iloc[0]
-                    #saving futures price ina  dictionary for gamma calculation
+                    # saving futures price ina  dictionary for gamma calculation
                     self.fut_prices[expiration] = fut
                     # Above 1 moneyness consider calls, under consider puts
                     ind_call = (fut * 1 < self.vol_dict[self.today]['Call'][key].strike
@@ -309,6 +357,7 @@ class VolCurveAgg:
             except:
                 pass
         return vc
+
 
 class CreateVolCurveSample:
 
