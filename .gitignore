@@ -108,3 +108,4 @@ svd_df_daily.csv
 
 .idea
 .DS_Store
+daily_sentiment.csv
