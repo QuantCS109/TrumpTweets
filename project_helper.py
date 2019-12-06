@@ -213,6 +213,9 @@ class TweetReturnsFeatures(VolFeatures):
         tweet_returns.index = pd.to_datetime(tweet_returns.index)
         return tweet_returns
 
+class MarketFeatures    (TweetReturnsFeatures):
+    def __init__(self, path='features/market_features.csv'):
+        super().__init__(path)
 
 
 class TradeModel:
