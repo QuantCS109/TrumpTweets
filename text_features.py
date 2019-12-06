@@ -147,11 +147,14 @@ class SentimentFeaturesGenerator:
         self.sentiment_df['combined_score'] = self.sentiment_series.map(lambda x: x.get('compound'))
         self.sentiment_df['date'] = self.tweets_df.after4_date
         self.sentiment_df.index = self.sentiment_series.index
+        self.sentiment_df.index = pd.to_datetime(self.sentiment_df.index)
 
     def aggregate_sentiments(self):
         self.sentiment_df_aggregate = self.sentiment_df.groupby('date').agg(['min','max','mean'])
         self.sentiment_df_aggregate.columns = ["_".join([x[0], x[1]]) for x in\
                                                self.sentiment_df_aggregate.columns]
+        self.sentiment_df_aggregate.index = pd.to_datetime(self.sentiment_df_aggregate.index)
+
     def run(self):
         self.get_sentiments()
         if self.aggregate:
