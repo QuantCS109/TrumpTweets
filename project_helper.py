@@ -172,7 +172,7 @@ class FuturesCloseData:
     def price(self, inst):
         return self.df[inst]
 
-    def returns(self, inst, start=1, end=2):
+    def returns(self, inst, start=0, end=1):
         returns = (self.df[inst].shift(-end) - self.df[inst].shift(-start)) / self.df[inst].shift(-start)
         return returns
 
