@@ -3,6 +3,9 @@ import random
 import torch
 from torch import nn
 from collections import Counter
+from sklearn.manifold import TSNE
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 
 def subsampling(threshold, int_words):
     word_counts = Counter(int_words)
@@ -153,6 +156,54 @@ def cosine_similarity_sample(embedding, val, valid_size=16, valid_window=100, de
     similarities = torch.mm(valid_vectors, embed_vectors.t()) / magnitudes
 
     return valid_examples, similarities
+
+def word_similarities(word, num, model,  vocab_to_int, int_to_vocab):
+    word_int = vocab_to_int[word]
+    valid_examples, valid_similarities = cosine_similarity_sample(model.in_embed, [word_int])
+    closest_idxs = valid_similarities.topk(num)
+    closest_words = [int_to_vocab[int(a)] for a in closest_idxs.indices[0]]
+    return closest_words
+
+# Code adapted from
+# https://towardsdatascience.com/google-news-and-leo-tolstoy-visualizing-word2vec-word-embeddings-with-t-sne-11558d8bd4d
+def get_clusters(keys, num, model, embeddings, vocab_to_int, int_to_vocab):
+    embedding_clusters = []
+    word_clusters = []
+    for word in keys:
+        embed_sub = []
+        words = []
+        for similar_word in word_similarities(word, num, model, vocab_to_int, int_to_vocab):
+            words.append(similar_word)
+            embed_sub.append(embeddings[vocab_to_int[similar_word],:])
+        embedding_clusters.append(embed_sub)
+        word_clusters.append(words)
+    return embedding_clusters, word_clusters
+
+def tsne_plot_similar_words(title, labels, embedding_clusters, word_clusters, a, filename=None):
+    plt.figure(figsize=(16, 9))
+    colors = cm.rainbow(np.linspace(0, 1, len(labels)))
+    for label, embeddings, words, color in zip(labels, embedding_clusters, word_clusters, colors):
+        x = embeddings[:, 0]
+        y = embeddings[:, 1]
+        plt.scatter(x, y, c=color, alpha=a, label=label)
+        for i, word in enumerate(words):
+            plt.annotate(word, alpha=0.5, xy=(x[i], y[i]), xytext=(5, 2),
+                         textcoords='offset points', ha='right', va='bottom', size=10)
+    plt.legend(loc=4)
+    plt.title(title)
+    plt.grid(True)
+    if filename:
+        plt.savefig(filename, format='png', dpi=150, bbox_inches='tight')
+    plt.show()
+
+def plot_similar_words(keys, model, vocab_to_int, int_to_vocab, num=20, file=None):
+    embeddings = model.in_embed.weight.to('cpu').data.numpy()
+    embedding_clusters, word_clusters = get_clusters(keys, num, model, embeddings, vocab_to_int, int_to_vocab)
+    embedding_clusters = np.array(embedding_clusters)
+    n, m, k = embedding_clusters.shape
+    tsne_model_en_2d = TSNE(perplexity=15, n_components=2, init='pca', n_iter=3500, random_state=32)
+    embeddings_en_2d = np.array(tsne_model_en_2d.fit_transform(embedding_clusters.reshape(n * m, k))).reshape(n, m, 2)
+    tsne_plot_similar_words('Similar words from Trump', keys, embeddings_en_2d, word_clusters, 0.7, file)
 
 
 

@@ -2,11 +2,11 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 from pytz import timezone
-import re
 from datetime import timedelta
 import pickle
 import re
 from sklearn.ensemble import RandomForestClassifier
+
 
 
 class TweetData:
@@ -240,6 +240,7 @@ class TradeModel:
     def sharpe(self, X, returns, cutoff=0.55):
         rets = self.strategy_returns(X, returns, cutoff)[0]
         return np.mean(rets) / np.std(rets)
+
 
 
 
