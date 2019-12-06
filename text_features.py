@@ -6,6 +6,8 @@ import numpy as np
 from scipy import sparse
 import os
 
+import pandas as pd
+
 
 class TextFeaturesGenerator:
 
@@ -122,6 +124,40 @@ class TextFeaturesGenerator:
             self.svd_bow_mat is not None else None
         np.save(svd_tfidf_location,self.svd_tfidf_mat) if \
             self.svd_tfidf_mat is not None else None
+
+
+
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
+class SentimentFeaturesGenerator:
+    def __init__(self,tweet_df,aggregate=False):
+        self.text = tweet_df.tweets
+        self.tweets_df = tweet_df
+        self.sid = SentimentIntensityAnalyzer()
+        self.sentiment_df = pd.DataFrame()
+        self.sentiment_series = None
+        self.sentiment_df_aggregate = pd.DataFrame()
+        self.aggregate = aggregate
+
+    def get_sentiments(self):
+        self.sentiment_series = self.text.map(self.sid.polarity_scores)
+        self.sentiment_df['negative_proportion'] = self.sentiment_series.map(lambda x: x.get('neg'))
+        self.sentiment_df['positive_proportion'] = self.sentiment_series.map(lambda x: x.get('pos'))
+        self.sentiment_df['neutral_proportion'] = self.sentiment_series.map(lambda x: x.get('neu'))
+        self.sentiment_df['combined_score'] = self.sentiment_series.map(lambda x: x.get('compound'))
+        self.sentiment_df['date'] = self.tweets_df.after4_date
+        self.sentiment_df.index = self.sentiment_series.index
+
+    def aggregate_sentiments(self):
+        self.sentiment_df_aggregate = self.sentiment_df.groupby('date').agg(['min','max','mean'])
+        self.sentiment_df_aggregate.columns = ["_".join([x[0], x[1]]) for x in\
+                                               self.sentiment_df_aggregate.columns]
+    def run(self):
+        self.get_sentiments()
+        if self.aggregate:
+            self.aggregate_sentiments()
+
+
 
 
 
