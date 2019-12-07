@@ -120,19 +120,19 @@ class RatesCurve:
     rate isn't as important as in, say, Black-Scholes.
     """
     def __init__(self):
-        self.rates = pd.read_csv('data/libor_1m.csv')
+        self.rates = pd.read_csv('../data/input_data/libor_1m.csv')
         self.rates.DATE = pd.to_datetime(self.rates.DATE)
         self.rates = self.rates.set_index('DATE')
         self.rates['LIBOR'] = self.rates['LIBOR'].astype(float)
 
         self.rates_1m = self.rates
 
-        self.rates_3m = pd.read_csv('data/libor_3m.csv')
+        self.rates_3m = pd.read_csv('../data/input_data/libor_3m.csv')
         self.rates_3m.DATE = pd.to_datetime(self.rates_3m.DATE)
         self.rates_3m = self.rates_3m.set_index('DATE')
         self.rates_3m['LIBOR'] = self.rates_3m['LIBOR'].astype(float)
 
-        self.rates_6m = pd.read_csv('data/libor_6m.csv')
+        self.rates_6m = pd.read_csv('../data/input_data/libor_6m.csv')
         self.rates_6m.DATE = pd.to_datetime(self.rates_6m.DATE)
         self.rates_6m = self.rates_6m.set_index('DATE')
         self.rates_6m['LIBOR'] = self.rates_6m['LIBOR'].astype(float)
@@ -174,7 +174,7 @@ class FuturesCurve:
     futures prices for any date inside 2 months.
     """
 
-    def __init__(self, path='data/fut.pkl'):
+    def __init__(self, path='../data/input_data/fut.pkl'):
         self.instrument_list = ['ES', 'NQ', 'CD', 'EC', 'JY', 'MP', 'TY', 'US', 'C', 'S', 'W', 'CL', 'GC']
         self.df = self.load(path)
         self.col_dict = {inst: [key for key in self.df.columns if re.match(r"{}_+".format(inst), key)]
@@ -238,8 +238,8 @@ class VolCurve:
     which represents the volatility surface.
     """
     def __init__(self):
-        self.vol_poly_1M = self.load('data/vol_poly_1M.pkl')
-        self.vol_poly_2M = self.load('data/vol_poly_2M.pkl')
+        self.vol_poly_1M = self.load('../data/input_data/vol_poly_1M.pkl')
+        self.vol_poly_2M = self.load('../data/input_data/vol_poly_2M.pkl')
         self.rate_curve = RatesCurve()
         self.futures_curve = FuturesCurve()
 

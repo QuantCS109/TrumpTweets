@@ -95,7 +95,7 @@ class TextFeaturesGenerator:
         return self.svd_tfidf_mat
 
 
-    def save_matrices(self,folder=None,suffix=""):
+    def save_matrices(self,folder='../data/intermediate_data/',suffix=""):
         """
         Arguments:
         :param folder: Folder / directory in which to save the matrices
