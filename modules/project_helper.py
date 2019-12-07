@@ -182,8 +182,11 @@ class FuturesCloseData:
         momo.columns += '_{}D'.format(lag)
         return momo
 
-    def log_returns(self):
-        return np.log(self.df.shift(-1)) - np.log(self.df)
+    def log_returns(self, start=0, end=1):
+         np.log(self.df.shift(-end)) - np.log(self.df.shift(-start))
+
+    def single_log_returns(self, inst,  start=0, end=1):
+         return np.log(self.df[inst].shift(-end)) - np.log(self.df[inst].shift(-start))
 
 
 class VolFeatures:
@@ -234,7 +237,7 @@ class TradeModel:
 
     def _strategy_returns(self, x, y):
         strat_rets = x[:-2] * y[:-2]
-        strat_rets_cum = (1 + strat_rets).cumprod()
+        strat_rets_cum =  strat_rets.cumsum()
         return strat_rets, strat_rets_cum
 
     def strategy_returns(self, X, returns, cutoff=0.55):
