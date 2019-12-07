@@ -187,7 +187,7 @@ class FuturesCloseData:
 
 
 class VolFeatures:
-    def __init__(self, path='features/vol_features.pkl'):
+    def __init__(self, path='../data/features/vol_features.pkl'):
         self.instrument_list = ['ES', 'NQ', 'CD', 'EC', 'JY', 'MP', 'TY', 'US', 'C', 'S', 'W', 'CL', 'GC']
         self.df = self.load(path)
         self.col_dict = {inst: [key for key in self.df.columns if re.match(r"{}_+".format(inst), key)]
@@ -204,7 +204,7 @@ class VolFeatures:
 
 
 class TweetReturnsFeatures(VolFeatures):
-    def __init__(self, path='features/tweet_returns_features.csv'):
+    def __init__(self, path='../data/features/tweet_returns_features.csv'):
         super().__init__(path)
 
     def load(self, path):
@@ -214,7 +214,7 @@ class TweetReturnsFeatures(VolFeatures):
         return tweet_returns
 
 class MarketFeatures    (TweetReturnsFeatures):
-    def __init__(self, path='features/market_features.csv'):
+    def __init__(self, path='../data/features/market_features.csv'):
         super().__init__(path)
 
 
