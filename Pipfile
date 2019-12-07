@@ -16,6 +16,7 @@ torch = {file = "https://download.pytorch.org/whl/cu101/torch-1.3.1-cp36-cp36m-w
 statsmodels = "*"
 seaborn = "*"
 tqdm = "*"
+selenium = "*"
 
 [requires]
 python_version = "3.6"
