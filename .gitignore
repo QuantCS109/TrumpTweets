@@ -102,9 +102,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-*.npz
-*.npy
-svd_df_daily.csv
+
 
 .idea
 .DS_Store
