@@ -183,7 +183,7 @@ class FuturesCloseData:
         return momo
 
     def log_returns(self, start=0, end=1):
-         np.log(self.df.shift(-end)) - np.log(self.df.shift(-start))
+         return np.log(self.df.shift(-end)) - np.log(self.df.shift(-start))
 
     def single_log_returns(self, inst,  start=0, end=1):
          return np.log(self.df[inst].shift(-end)) - np.log(self.df[inst].shift(-start))
