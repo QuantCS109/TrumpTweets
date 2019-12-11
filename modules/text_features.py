@@ -1,3 +1,7 @@
+# modules.text_features.py
+# https://github.com/QuantCS109/TrumpTweets/blob/master/modules/text_features.py
+# This is a .py file used in the notebooks
+
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.decomposition import TruncatedSVD

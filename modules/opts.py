@@ -1,3 +1,7 @@
+# modules.opts.py
+# https://github.com/QuantCS109/TrumpTweets/blob/master/modules/opts.py
+# This is a .py file used in the notebooks
+
 import numpy as np
 import pandas as pd
 from scipy.stats import norm

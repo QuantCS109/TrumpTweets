@@ -1,3 +1,8 @@
+# modules.project_helper.py
+# https://github.com/QuantCS109/TrumpTweets/blob/master/modules/project_helper.py
+# This is a .py file used in the notebooks
+
+
 import pandas as pd
 import numpy as np
 from collections import Counter
