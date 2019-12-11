@@ -1,3 +1,7 @@
+# modules.skipgram.py
+# https://github.com/QuantCS109/TrumpTweets/blob/master/modules/skipgram.py
+# This is a .py file used in the notebooks
+
 import numpy as np
 import random
 import torch
